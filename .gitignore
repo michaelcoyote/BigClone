@@ -1,0 +1,20 @@
+files being edited
+*~
+*swp
+
+# make and build files
+*.lst
+*.o
+*.eep
+*.lss
+*.map
+*.sym
+*.elf
+*.hex
+
+# for this project just kill everything
+#*
+
+# then always allow c files
+!*.c
+!*.h
