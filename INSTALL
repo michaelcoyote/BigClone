@@ -1,0 +1,200 @@
+INSTALLING AND RUNNING 
+______________________
+
+Installing
+
+Preinstall:
+
+Instructions for all OSes
+
+	Verify Perl install of 5.8
+
+	Verify that Perl and the following NetWorker
+		programs are listed in the system path:
+		nsrmm
+		mminfo
+		nsradmin
+		nsrjb - if ejecting tapes with media_report.pl
+		nsrim - if using prune.pl
+
+	Insure that the physical tape drives for use in cloning
+		are properly configured within networker, and are 
+		correctly associated with the clone pools that
+		will be used in the clone script.
+
+Windows special instructions
+	
+	Insure that Perl is associated with the .pl extention
+
+
+UNIX/Linux special instructions
+
+
+	Change the path to Perl in the scripts if necessary
+
+	If ejecting tapes with media_report.pl, insure that it 
+		will be run as root.
+	
+
+Install
+
+1. 	Extract all files and place into script target directory. 
+		(i.e. /nsr/scripts/)
+
+2.	Create the following directories under the target directory:
+		queuedir
+		log
+		lock
+
+Configure
+
+queue_creator.pl
+
+	1. create a config file for each destination clone pool 
+		that will be used by the clone script.
+		(e.g. queue_creator_gold.conf)
+
+	2. inside each file, you must configure the following attributes
+
+		$NSRSERVER - NetWorker server
+
+		$QUEUES - How many saveset queue files to create during a given
+			run of the program.
+
+		$DAYS - The number of days back to look for savesets 
+			(set to -10 by default)
+
+		$PRIORITY - The prority of the queuefiles we will be writing
+			1 is the higest priority, 9 is the lowest. Currently 
+			the levels are assigned like this:
+			Levels:
+			qf1 - reserved of future use/unused
+			qf2 - manual emergency clone 
+			qf3 - highest priority
+			qf4 - high priority
+			qf5 - medium priority
+			qf6 - medium low priority
+			df7 - low priority
+			qf8 - reserved of future use/unused
+			qf9 - reserved of future use/unused
+
+		@POOLS - A comma separated list of backup pools that will 
+			be cloned to the clone pool listed in $DESTPOOL
+
+		$DESTPOOL - The clone pool that will be the destination
+			of the clone operations.
+
+		Optional settings - omit if no need to change
+
+		$LOGLOC - The log directory. This is usually set to "log",
+			and will log in "log" dir in the script home
+		
+		$LOGFILE - The file that will log all the clone ops.
+
+		$QUEUEDIR - The directory where the queue files will be
+			created and processed. Must be the same for 
+			queue_creator.pl and queue_runner.pl
+
+		Special use Variables. These should be omitted from the 
+			config file if not used.
+
+		$mmquerystring - describe the list of save sets that will
+			be returned by the mminfo query
+			
+			Default: !incomplete, savetime<$DAYS days ago,copies<2
+
+			This query selects complete, uncloned savesets 
+			back to $DAYS old.  See mminfo documentation for
+			more information.
+
+		$SKIPCHECK - Override the duplicate save set check.  This 
+			allows the same save set to be selected by 
+			multiple runs. Leave this set to zero unless you 
+			specifically want multiple save sets created.
+
+
+	3. Create a batch/shell script to run all configurations at one time
+		e.g.:
+
+		queue_creator -c queue_creator_config1.conf
+		queue_creator -c queue_creator_config2.conf
+		queue_creator -c queue_creator_config3.conf
+
+
+queue_runner.pl
+
+	1. Create a config file for the overall server
+
+	2. Update the following variables
+
+
+		$NSRSERVER - NetWorker server
+
+		@PHYCLONEDRIVES - quoted list of physical tape drives that 
+			can be used for writing clones
+
+		$MAXTRIES - The maximum number of tries for any given 
+			queue file.
+
+		Optional settings - omit if unneeded
+
+		$LOGLOC - the log directory. This is usually set to "log",
+			and will log in "log" directory in the script home
+		
+		$LOGFILE - The file that will log all the clone ops.
+		
+		$QUEUEDIR - The directory where the queue files will be
+			created and processed. Must be the same for 
+			queue_creator.pl and queue_runner.pl
+
+		$LOCKDIR - location of the directory holding the lock files
+			(default "./lock")
+		
+		$STOPFILE - The location of the stop file 
+			(default "./stop")
+
+prune.pl
+
+	1. Create a config file for the overall server
+
+	2. Update the following variables
+		
+		$NSRSERVER - NetWorker server
+
+		$RETENTION - How many days to retain data on the VTL
+
+		@LOCATIONS - A space separated list of VTLs 
+
+
+media_export.pl
+	
+	NOTE: This script requires root access under UNIX/Linux if the 
+		eject tape function will be used. To use the eject tape
+		function run with a -e
+
+	1. Create a config file for each physical jukebox
+
+	2. Update the following variables
+		
+		$NSRSERVER - NetWorker server
+
+		$JB - Physical jukebox name
+
+		@POOLS - Space separated list of pools to be ejected daily
+
+		$LOCATION - The offsite location (Default "offsite")
+
+		$TIME - how far back to eject old tapes 
+			(e.g. "last week" or "4 days ago")
+
+		$MAILSERV - Mailserver to send reports.
+
+		$MAILER - command used to send mail
+
+
+
+	
+
+
+
+

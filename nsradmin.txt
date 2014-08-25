@@ -1,0 +1,3 @@
+show enabled;NSR operation;name
+print NSR device
+

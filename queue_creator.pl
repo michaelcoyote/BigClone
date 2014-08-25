@@ -8,21 +8,6 @@
 # backup pools) and create a queue for the savesets to 
 # clone a single clone pool.
 #
-#
-# TODO 
-# use of program flags for program control (cloning/staging, number 
-# 	of drives, days back, etc.)
-# reduce/remove use of tempfiles by using arrays ?
-# logging to logfiles
-# use subroutines to simplify program flow and make expansion easier
-#
-# long term:
-# expand to cover multiple source and destination pools
-#
-## Best Practices.  
-# Do not remove or disable without good documented reason.
-#
-
 
 ###### 
 # Do not remove or disable without good documented reason.
@@ -45,10 +30,10 @@ $i $LOGFILE $mmquerystring $QUEUEDIR @POOLS $DESTPOOL
 # control the queue creation.  
 # More queues create more smaller clone operations, 
 # while fewer queses create larger clone operations.
-$QUEUES="4";
+$QUEUES="2";
 
 # How many days back will we clone?
-$DAYS="-14";
+$DAYS="-10";
 
 #
 # what source pool or pools will we clone/stage from
@@ -118,6 +103,10 @@ $DEBUG=0;
 # 
 $mmquerystring="!incomplete, savetime<$DAYS days ago,copies<2";
 
+# skip the check for existing savesets in the queuedir
+# NOTE: This should be lef off unless you want multiple clones of
+# given set of save sets
+$SKIPCHECK=0;
 
 ####  Code starts here.  No user set vars below this line
 #
@@ -171,7 +160,6 @@ sub logme {
 
 	chomp($date);
 	# write to stdout
-	# select((select(DEV), $| = 1)[0]); 
 	if ( $use_stdout ) {
 		printf("%s: %s - %s\n",$date,$args{level},$args{message});
 	# write to our logfile
@@ -190,20 +178,7 @@ sub dielog {
 	logme(message => "queue_runner ended");
 	die "$error\n";
  
-}
-# use to clear the lockfiles
-#sub dieunlock {
-#	# unlock and log
-#	my ($error) = @_;
-#	unlink ($LOCKFILE);
-#	logme(message => "$LOCKFILE Removed");
-#	unlink ("$LOCKFILE") or dielog ("Error removing $LOCKFILE: $!");
-	# log the error
-#	logme(message => "$error", 
-#		level => 'ERROR');
-#	logme(message => "queue_runner ended");
-#	die ("$error\n");
-#} # end dieunlock()
+} # end dielog()
 ########
 
 #####
@@ -258,7 +233,10 @@ if (!-d $QUEUEDIR) {
 }
 
 
-ss_sort(queue_compare(ss_gather(@POOLS)));
+#
+#
+# 
+ss_sort(ss_gather(@POOLS));
 
 
 ########
@@ -267,12 +245,14 @@ ss_sort(queue_compare(ss_gather(@POOLS)));
 #
 ###
 #
+# ss_gather()
 #
 # Saveset list gathering Loop
-# obtain list of complete Save Set IDs matching desired criteria 
-# and seperate them into nonspanning and spanning savesets
-# and dump into correct files
+# obtain list of complete Save Set IDs for each pool passed in to the 
+# function. Seperate each save set into nonspanning and spanning savesets
+# and dump into correct files.  Pass the list out as an array.
 sub ss_gather {
+	my @ssidout;
 	foreach my $pool (@_){
 		logme(message=> "ss_gather",
 			level=>"DEBUG");
@@ -283,17 +263,14 @@ sub ss_gather {
 		# reporting (-r) output of mminfo you will need to address this 
 		# in the sorting loop
 
-		logme(message=> "running mminfo: $NSRMMINFO -s $NSRSERVER -xc, -r sumflags,volume,ssid,cloneid   -q \"pool=$pool\" -q \"$mmquerystring\"",
+		logme(message=> 
+			"running mminfo: $NSRMMINFO -s $NSRSERVER -xc, -r sumflags,volume,ssid,cloneid -q \"pool=$pool\" -q \"$mmquerystring\"",
 		level=> "DEBUG") if $DEBUG;
-		open (SSID, "$NSRMMINFO -s $NSRSERVER -xc, -r sumflags,volume,ssid,cloneid   -q \"pool=$pool\" -q \"$mmquerystring\"|") || dielog( "Problem contacting mminfo: $!");
-
-		# for testing
-		#open ( SSID, "testfile.txt") || die "no testfile.txt\n";
-	
+		open (SSID, "$NSRMMINFO -s $NSRSERVER -xc, -r sumflags,volume,ssid,cloneid -q \"pool=$pool\" -q \"$mmquerystring\"|") 
+			or dielog( "Problem contacting mminfo: $!");
 		#
 		# read the 4 fields and dump to the array @ssidtmp.
 		my @ssidtmp=<SSID>;
-	
 		# for debug
 		if ($DEBUG > 6) {
 			foreach(@ssidtmp) {
@@ -301,19 +278,17 @@ sub ss_gather {
 					level=> "DEBUG");
 			}
 		}
-	
 		close (SSID);
-
-		return (@ssidtmp);
+		push (@ssidout, @ssidtmp);
 	}
-
-
+	return (@ssidout);
 } # end ss_gather()
 #
 # 
-#
+# queue_compare()
 # compare incoming list to queue and filter previously 
-# selected savesets
+# selected savesets passing the list of unique save sets 
+# through as an array
 sub queue_compare {
 	my @newssids=@_;
 	my @oldssids;
@@ -322,14 +297,10 @@ sub queue_compare {
 	#print(Dumper(@newssids)."\n");
 	# get all files in the queue directory 
 	# and dump them to an array of filenames
-	#
-	# all the files are formatted 
-	# ssid/cloneid
 	my @qfiles = <$QUEUEDIR/*>;
 	foreach my $qf (@qfiles) {
 		logme(message=>"reading $qf",
 			level=>"DEBUG") if $DEBUG;
-		# just log error and continue
 		open (QF, "< $qf") or logme(message=>"cannot open $qf: $!",
 		level=>"ERROR");
 			my @tqf = <QF>;
@@ -338,32 +309,27 @@ sub queue_compare {
 				if ($qline =~ /^[0-9]..*/) {
 					chomp($qline);
 					my @baz = split("/",$qline,2);
-					# only push the SSID portion
 					push (@oldssids, $baz[0]);
-					logme(message=>"SSID queued: $baz[0]",
+					logme(message=>"queue line: $baz[0]",
 						level=> "DEBUG") if $DEBUG;
 				}
 			}
 	}
 	#
-	#print(Dumper(@oldssids)."\n");
 	# read all the ssids and place them into an array of ssids
-	# all the records are formatted 
-	# flags,volume,ssid,cloneid
-	# Find SSIDs in @newssids that arent in @oldssids
+	# find the new ssids
 	my %seen;
 	# build lookup table
-	@seen{@oldssids} = (1);
+	@seen{@oldssids} = ( );
 	#print("seen ssids array:\n".Dumper(%seen)."\n");
 	foreach my $ss (@newssids) {
 		chomp($ss);
 		my @foo = split (',',$ss,4);
 		logme(message=>"looking for SSID: $foo[2]",
 			level=>"DEBUG") if $DEBUG;
-    		unless (defined($seen{$foo[2]})){
+    		unless ($seen{$foo[2]}){
 			logme(message=>"SSID not seen: $foo[2]",
 				level=>"DEBUG") if $DEBUG;
-			# reconstitute the records of only the unique SSIDs
 			push(@uniquessids, "$foo[0],$foo[1],$foo[2],$foo[3]");
 		}
 	}
@@ -377,11 +343,6 @@ sub queue_compare {
 # though it line by line.  All i'm doing here is reading in the list 
 # of savesets and sorting out the ones i want like complete and "head" 
 # savesets and creating a "worklist" keyed against the tape volume ID
-# TODO
-# a possible optimization might be to flag "head" (spanning multiple tapes)
-# savesets for running after "complete" savesets (savesets residing on 
-# one tape). This could make for faster cloning on systems where the 
-# savesets are smaller
 #
 sub ss_sort {
 	logme(message=> "Sorting SaveSets");
@@ -429,13 +390,21 @@ sub ss_sort {
 
 	} ## Close foreach()
 	print "\n";
-
-
 	# Drive Queue Loop
-	# loop through each volume and sort into a number of queues 
+	# loop through each volume and sort into a number of queues determined by the 
+	# number of queues set in $QUEUES. The limitation is that each volume's savesets 
+	# can only go to one queue and can cannot be divided between queues.  This allows NetWorker
+	# to clone more efficiently. If the number of volumes is less than the number of queues, then
+	# only the amount of queues for each volume will be created.
+	#
+	# Steps:
+	# * take the list of savesets and sort by volume number
+	# * alternately assign the savesets of each volume to a queue (the number of queues set in $QUEUES)
+	# * take the next volume and assign to the next queue
+	# * when all queues have been filled, return to the first queue and add the next volume's save sets
+	# * save the ssid/cloneid as a hash value keyed by the queue number 
 	#
 	my %queue;
- 	# TODO document the outcome of this process
 	foreach $volume (sort keys %worklist){
 		#
 		($i++ >= $QUEUES) && ($i=1);
@@ -451,11 +420,11 @@ sub ss_sort {
 				level=>"DEBUG") if $DEBUG;
 			push (@{$queue{$q}},$sscl );
 		}
-	}
+	} # end Drive queue loop
 
 # Queue File Loop
-# Loop through and create queuefiles that queue_runner.pl
-# can read from.
+# Loop through the queues and create queuefiles in the queuedir 
+# that queue_runner.pl can read from.
 	foreach my $qout (sort keys %queue ) {
 		my $queuefile="$QUEUEDIR/ssq-$DESTPOOL-$$-q$qout-t0.qf$PRIORITY";
 		logme (message=>"saving queue $qout to: $queuefile");

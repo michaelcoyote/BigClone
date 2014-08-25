@@ -1,4 +1,4 @@
-files being edited
+# files being edited
 *~
 *swp
 
@@ -12,9 +12,10 @@ files being edited
 *.elf
 *.hex
 
+# Log files and queue files
+*.log
+*.queue
+
 # for this project just kill everything
 #*
 
-# then always allow c files
-!*.c
-!*.h
