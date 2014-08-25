@@ -219,7 +219,7 @@ if ($options{c}) {
 		eval $conf;
 		dielog("Couldn't eval config file: $@") if $@;
 		print "config file loaded\n";
-	} else {print "Config file not found, using defaults\n";}
+	} else {die "Config file not found please specify with -c file\n";}
 }
 #####
 
@@ -647,7 +647,11 @@ sub clone_processor {
 		unless (fork) {
 			# create the temp file
 			my($inpqfile, $inpqpath, undef) = fileparse($dqueuefile,"qf\d");
-			#print "$inpqfile/n";
+			# Here's an example of a queue file name we'll be matching
+			#	  	(ssq-ClonePool-6032-q1-t0)(.qf4)
+			#$dqueuefile =~/(ssq-\w{2,16}-\d+-q\d-t\d)(\.qf\d)$/;
+			#my $inpqfile=$1.$2;
+			print "$inpqfile/n";
 			# 
 			# use a lock file to insure that queuefile is not ran twice
 			my $cllock = "$LOCKDIR/clone-$mainpid-$inpqfile-lock";

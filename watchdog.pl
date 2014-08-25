@@ -2,12 +2,6 @@
 #
 #
 # watchdog.pl
-# Run from “cron” every 10-30 minutes
-# Generate a hard error on these events
-#  *.qf[1-4] files older than a configured time (4 hours?)
-#  *.qf[5-9] files older than a configured time (12 hours?)
-#  $CLONEPROCID.inp files older than a configured time (12 hours)
-#  clone process lock file without clone process
 #
 #
 ###### 
@@ -21,8 +15,8 @@ use File::stat;
 #
 use vars qw($NSRSERVER $CLONETMP $QUEUEDIR $CLONEWRAPPER $DEBUG $TEST 
 $LOGFILE $LOGLOC $NSRBIN $NSRCLONE $CONFIG %options $SAVEGROUP $STOPFILE 
-$LOCKDIR $LOCKFILE $LOGFILE $MAXTRIES $NSRADMIN @PHYCLONEDRIVES $mainpid
-$QUEUEAGEMIN $WDLOGFILE $INFILEAGEMIN $LOCKAGEMIN );
+$LOCKDIR $LOCKFILE $LOGFILE $MAXTRIES $NSRADMIN @PHYCLONEDRIVES $mainpid $f $a
+$QUEUEAGEMIN $WDLOGFILE $INFILEAGEMIN $LOCKAGEMIN $MAILSERV $MAILER );
 #
 #
 #
@@ -33,6 +27,12 @@ $INFILEAGEMIN=900;
 
 # Age of lock files in minutes
 $LOCKAGEMIN=900;
+
+# Mail Server
+$MAILSERV="mailhost-hou150.chevrontexaco.net";
+#
+# configure the mail server
+$MAILER="smtpmail \-s \"Stale Clone Queuefiles Report \" \-h $MAILSERV \-f gnmi\@chevron.com gnmi\@chevron.com";
 
 
 #
@@ -79,7 +79,7 @@ if ($options{c}) {
 		eval $conf;
 		dielog("Couldn't eval config file: $@") if $@;
 		print "config file loaded\n";
-	} else {print "Config file not found, using defaults\n";}
+	} else {die "Config file not found please specify with -c file\n";}
 }
 #####
 #
@@ -127,17 +127,25 @@ sub logme {
 
 
 
+open (MAIL, "|$MAILER") || die ( "$MAILER failed: $!\n");
+#
 
+print MAIL "\n";
 
 ### Generate a hard error on these events
 # *.qfn files older than a configured time (12 hours?)
 # *.inp files older than a configured time (12 hours)
 
 #check_qf("ssq-ClonePool-6032-q1-t0.qf4","3660");
+
+
+format MAIL =
+@<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<@|||||||||||||||||
+$f,                                                              $a
+.
+
 check_qf();
-
-
-
+check_lock();
 
 # check for queuefiles over a given age in hours 
 sub check_qf {
@@ -184,17 +192,19 @@ sub check_qf {
 		}
 	} # end filesorting foreach
 	
-	print("\nPossibly Stale Queuefiles\n\n");
-	print("Filename     			     	 Age in Minutes\n");
+	print( MAIL "\nPossibly Stale Queuefiles\n");
+	print(MAIL "Queue File Name                                  File Age In Minutes\n");
+	print (MAIL "---------------------------------------------------------------------\n");
 	foreach my $qold (@qfold) {
-		my ($oqf,$oqa) = split (/,/, $qold);
-		printf ("%s				%d\n",$oqf, $oqa) ; 
+		($f,$a) = split (/,/, $qold);
+		write MAIL;
 	}	
-	print("\nPossibly Stale Inprogress Files\n\n");
-	print("Filename     			     	 Age in Minutes\n");
+	print(MAIL "\nPossibly Stale Inprogress Files\n");
+	print(MAIL "Inprogress File Name                             File Age In Minutes\n");
+	print (MAIL "---------------------------------------------------------------------\n");
 	foreach my $infold (@infold) {
-		my ($inpf,$inpa) = split (/,/, $infold);
-		printf ("%s				%d\n",$inpf, $inpa) ; 
+		($f,$a) = split (/,/, $infold);
+		write MAIL;
 	}
 	print "\n";
 
@@ -213,7 +223,6 @@ sub check_lock {
 	closedir LDIR;
 	foreach my $lockfile (@lockfiles){
 		#
-		print "$lockfile\n";
 		chomp($lockfile);
 		if ($lockfile =~ /ssq-\w{2,16}-\d+-q\d-t\d\.qf\d\.lock$/) {
 			#
@@ -232,12 +241,12 @@ sub check_lock {
 			} #seperate the old from the new files
 		} # qfile regex end if
 	} # end filesorting foreach
-	
-	print("\nPossibly Stale Clone Lock files\n\n");
-	print("Filename     			     	 Age in Minutes\n");
+	print( MAIL "\nPossibly Stale Lock Files\n");
+	print( MAIL "Lock File Name                                   File Age In Minutes\n");
+	print ( MAIL "---------------------------------------------------------------------\n");
 	foreach my $lockold (@lockfileold) {
-		my ($lf,$la) = split (/,/, $lockold);
-		printf ("%s				%d\n",$lf, $la) ; 
+		($f,$a) = split (/,/, $lockold);
+		write;
 	}	
 
 }
@@ -274,4 +283,9 @@ sub reset_queuefile {
 	logme("queuefile moved to $qfn");
 	return(0);
 }
+
+print MAIL "\n";
+
+close (MAIL);
+
 

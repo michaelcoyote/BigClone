@@ -118,7 +118,6 @@ queue_creator.pl
 
 		queue_creator -c queue_creator_config1.conf
 		queue_creator -c queue_creator_config2.conf
-		queue_creator -c queue_creator_config3.conf
 
 
 queue_runner.pl
@@ -190,11 +189,3 @@ media_export.pl
 		$MAILSERV - Mailserver to send reports.
 
 		$MAILER - command used to send mail
-
-
-
-	
-
-
-
-

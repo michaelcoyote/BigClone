@@ -13,7 +13,7 @@ use Getopt::Std;
 use File::Path;
 #
 use vars qw($NSRSERVER $DEBUG $NSRMMINFO $LOGFILE $LOGLOC 
-$NSRBIN $CONFIG %options $RETENTION @VJUKEBOX $TEST @LOCATIONS);
+$NSRBIN $CONFIG %options $RETENTION @VJUKEBOX $TEST @LOCATIONS );
 #
 # Variables 
 #
@@ -57,7 +57,7 @@ if ($options{c}) {
 		eval $conf;
 		dielog("Couldn't eval config file: $@") if $@;
 		print "config file loaded\n";
-	} else {print "Config file not found, using defaults\n";}
+	} else {die "Config file not found please specify with -c file\n";}
 }
 #####
 
