@@ -21,7 +21,7 @@ use File::Path;
 use vars qw($NSRSERVER $CLONETMP $DEBUG $NSRMMINFO $TEST 
 $LOGFILE $LOGLOC $NSRBIN $CONFIG %options $PRIORITY
 $i $LOGFILE $mmquerystring $QUEUEDIR @POOLS $DESTPOOL
- $QUEUES $DAYS @ssidout %worklist $volume);
+ $QUEUES $DAYS @ssidout %worklist $volume $SKIPCHECK); 
 
 #
 #

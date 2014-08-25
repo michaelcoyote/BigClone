@@ -13,7 +13,7 @@ use Getopt::Std;
 use File::Path;
 #
 use vars qw($NSRSERVER $DEBUG $NSRMMINFO $LOGFILE $LOGLOC 
-$NSRBIN $CONFIG %options $RETENTION @VJUKEBOX $TEST );
+$NSRBIN $CONFIG %options $RETENTION @VJUKEBOX $TEST @LOCATIONS);
 #
 # Variables 
 #

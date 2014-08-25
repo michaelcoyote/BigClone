@@ -491,27 +491,28 @@ sub queue_read {
 
 		logme(message=> "$qfile");
 		# 
-		$qfile =~/(ssq-\w{2,16}-\d+-q\d-t\d)(\.qf\d)$/;
-		my $qfname=$1;
-		my $qfpri=$2;
-		#
-		# Print a little visual cue to let an observer 
-		# know that something is actually happening
-		print "r";
-		#
-		# populate the keyed hash using the filename as the key,
-		# but only use files ending with qf[0-9]
-		if ($qfpri =~ /\.qf\d$/) {
+		if ($qfile =~/(ssq-\w{2,16}-\d+-q\d-t\d)(\.qf\d)$/){
+			my $qfname=$1;
+			my $qfpri=$2;
+			#
 			# Print a little visual cue to let an observer 
 			# know that something is actually happening
-			print "w";
-			push(@qlist,$qfname.$qfpri);
+			print "r";
+			#
+			# populate the keyed hash using the filename as the key,
+			# but only use files ending with qf[0-9]
+			if ($qfpri =~ /\.qf\d$/) {
+				# Print a little visual cue to let an observer 
+				# know that something is actually happening
+				print "w";
+				push(@qlist,$qfname.$qfpri);
+			}
+			print " $qfname$qfpri\n" if $DEBUG > 5;
+			# If we were entering the data by hand, 
+			# the data structure would look something like this:
+			# @qlist = ( "file9_t0.qf2", "file2_t0.qf4", "file5_t0.qf3", "file1_t0.qf7");
+			#
 		}
-		print " $qfname$qfpri\n" if $DEBUG > 5;
-		# If we were entering the data by hand, 
-		# the data structure would look something like this:
-		# @qlist = ( "file9_t0.qf2", "file2_t0.qf4", "file5_t0.qf3", "file1_t0.qf7");
-		#
 	} # end the queue reader loop
 	print "\n";
 	if ($DEBUG >6  ){
@@ -645,9 +646,8 @@ sub clone_processor {
 	unless ($pid = fork) {
 		unless (fork) {
 			# create the temp file
-			#my($inpqfile, $inpqpath, $y) = fileparse($dqueuefile,"qf\d");
-			$dqueuefile =~/(ssq-\w{2,16}-\d+-q\d-t\d)(\.qf\d)$/;
-			my $inpqfile="$QUEUEDIR/$1";
+			my($inpqfile, $inpqpath, undef) = fileparse($dqueuefile,"qf\d");
+			#print "$inpqfile/n";
 			# 
 			# use a lock file to insure that queuefile is not ran twice
 			my $cllock = "$LOCKDIR/clone-$mainpid-$inpqfile-lock";
@@ -674,7 +674,7 @@ sub clone_processor {
 				chomp($cl_out);
 				if ( /Successfully\ cloned\ all/) {
 					$success=1;}
-				print "clone output line:$c:wl_out\n" if $DEBUG > 4;
+				print "clone output line:$cl_out\n" if $DEBUG > 4;
 				logme(message=> "$cl_out", 
 					level=> "CLONE");
 			} #endforeach
@@ -715,7 +715,7 @@ sub reset_queuefile {
 	$qf_pri-- unless ($qf_pri<3);
 	my $qfn= "$1$qf_pri";
 	rename($queuefile, $QUEUEDIR."/".$qfn) or logdie("problems renaming queuefile : $!");
-	logme("queuefile moved to $qfn");
+	logme(message=>"queuefile moved to $qfn");
 	return(0);
 }
 
