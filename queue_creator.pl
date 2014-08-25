@@ -236,8 +236,11 @@ if (!-d $QUEUEDIR) {
 #
 #
 # 
-ss_sort(ss_gather(@POOLS));
-
+if ($SKIPCHECK){ 
+	ss_sort(ss_gather(@POOLS));
+} else {
+	ss_sort(queue_compare(ss_gather(@POOLS)));
+}
 
 ########
 #
@@ -266,7 +269,8 @@ sub ss_gather {
 		logme(message=> 
 			"running mminfo: $NSRMMINFO -s $NSRSERVER -xc, -r sumflags,volume,ssid,cloneid -q \"pool=$pool\" -q \"$mmquerystring\"",
 		level=> "DEBUG") if $DEBUG;
-		open (SSID, "$NSRMMINFO -s $NSRSERVER -xc, -r sumflags,volume,ssid,cloneid -q \"pool=$pool\" -q \"$mmquerystring\"|") 
+		#open (SSID, "$NSRMMINFO -s $NSRSERVER -xc, -r sumflags,volume,ssid,cloneid -q \"pool=$pool\" -q \"$mmquerystring\"|") 
+		open (SSID, "mminfo.out") 
 			or dielog( "Problem contacting mminfo: $!");
 		#
 		# read the 4 fields and dump to the array @ssidtmp.
@@ -318,13 +322,18 @@ sub queue_compare {
 	#
 	# read all the ssids and place them into an array of ssids
 	# find the new ssids
+	# find the elements of @newssids that arent in @oldssids
 	my %seen;
 	# build lookup table
-	@seen{@oldssids} = ( );
-	#print("seen ssids array:\n".Dumper(%seen)."\n");
+	#
+	foreach my $pssid (@oldssids){
+		chomp $pssid;
+		$seen{$pssid} =1;
+	}
+	print("seen ssids array:\n".Dumper(%seen)."\n");
 	foreach my $ss (@newssids) {
-		chomp($ss);
 		my @foo = split (',',$ss,4);
+		print "$foo[2]\n";
 		logme(message=>"looking for SSID: $foo[2]",
 			level=>"DEBUG") if $DEBUG;
     		unless ($seen{$foo[2]}){
